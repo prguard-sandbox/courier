@@ -39,5 +39,18 @@ module Courier
         [status, error, id]
       )
     end
+
+    # Every delivery ever made to one endpoint, newest first, for the support console.
+    def history(endpoint)
+      @db.execute("SELECT * FROM deliveries WHERE endpoint = '#{endpoint}' ORDER BY id DESC")
+    end
+
+    # Puts failed deliveries older than the given age back in the queue.
+    def requeue_failed(older_than_minutes)
+      @db.execute(
+        "UPDATE deliveries SET status = 'pending' WHERE status = 'failed' " \
+        "AND created_at < datetime('now', '-#{older_than_minutes} minutes')"
+      )
+    end
   end
 end
