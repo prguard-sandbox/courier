@@ -1,0 +1,21 @@
+#!/usr/bin/env ruby
+# Posts pending deliveries forever, one batch at a time.
+require_relative "../lib/courier"
+
+store = Courier::Store.new(ENV.fetch("COURIER_DB", "courier.db"))
+delivery = Courier::Delivery.new(Courier::Signer.new(ENV.fetch("COURIER_SIGNING_SECRET")))
+
+loop do
+  batch = store.next_pending
+  if batch.empty?
+    sleep 1
+    next
+  end
+
+  batch.each do |row|
+    ok = delivery.deliver(row["endpoint"], row["event"], row["payload"])
+    store.mark(row["id"], status: ok ? "delivered" : "failed")
+  rescue StandardError => e
+    store.mark(row["id"], status: "failed", error: e.message)
+  end
+end
